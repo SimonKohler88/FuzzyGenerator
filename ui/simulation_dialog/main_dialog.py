@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QVBoxLayout, QDialog, QDialogButtonBox,
-                             QHBoxLayout, QRadioButton, QWidget)
+                             QHBoxLayout, QRadioButton, QWidget, QCheckBox)
 
 from .input_widget import FuzzySimInputs
 from .output_widget import FuzzySimOutputs
@@ -27,6 +27,9 @@ class FuzzyLogicSimulatorDialog(QDialog):
         self._h_splitter.addWidget(self._output_grp)
         v_box.addWidget(self._h_splitter)
         
+        self._verbose_cb = QCheckBox('Verbose')
+        v_box.addWidget(self._verbose_cb)
+        
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Close)
         v_box.addWidget(self.buttonBox)
@@ -44,8 +47,9 @@ class FuzzyLogicSimulatorDialog(QDialog):
         super().keyPressEvent(a0)
     
     def _calculate(self, inp_d, vals):
+        verbose = self._verbose_cb.isChecked()
         self._input_grp.set_value(vals)
-        for i, step in enumerate(calculate_yield(inp_d, data.data)):
+        for i, step in enumerate(calculate_yield(inp_d, data.data, verbose)):
             step_n = i + 1
             if step_n == 3:
                 self._output_grp.set_output_values(step)

@@ -3,8 +3,10 @@
 from collections import deque
 import pprint
 import itertools
+import calculation as calc
 
-import exporters.c_lang_export.c_strings
+
+# import exporters.c_lang_export.c_strings
 
 
 class LinguisticVar:
@@ -16,9 +18,9 @@ class LinguisticVar:
     
     def to_dict(self):
         return {'name': self.name,
-                'x': self.x,
-                'y': self.y,
-                'dx': self.dx}
+                'x': [float(v) for v in self.x],
+                'y': [float(v) for v in self.y],
+                'dx': float(self.dx)}
     
     def y_as_list_of_str(self):
         return [str(n) for n in self.y]
@@ -26,9 +28,6 @@ class LinguisticVar:
     def x_as_list_of_str(self):
         return [str(n) for n in self.x]
     
-    def len_x(self):
-        return len(self.x)
-
     @staticmethod
     def from_dict(dic):
         lv = LinguisticVar(dic['name'], dic['x'], dic['y'])
@@ -43,19 +42,27 @@ class FuzzyVar:
         self._dx = dx
         self.dy = 0.1
     
-    # def num_x_pts(self):
-    #     if len(self.ling_vars) > 0:
-    #         var = self.ling_vars[0]
-    #         n = (var.x[-1] - var.x[0]) / var.dx + 1
-    #         return len(var.x)
-    #     return None
+    def num_x_len(self):
+        num_x = max([len(lv.x) for lv in self.ling_vars])
+        return num_x
     
-    # def num_y_pts(self):
-    #     if len(self.ling_vars) > 0:
-    #         var = self.ling_vars[0]
-    #         n = (var.y[-1] - var.x[0]) / var.dx
-    #         return n
-    #     return None
+    def get_x(self):
+        x_pts = []
+        for each in self.ling_vars:
+            x_pts.extend(each.x)
+        x_pts = list(sorted(set(x_pts)))  # todo: uniqe values in x sorted
+        return x_pts
+    
+    def get_y(self, ling_var):
+        for each in self.ling_vars:
+            if ling_var == each:
+                y = each.y
+                x = each.x
+                x_common = self.get_x()
+                y_interpolate = calc.interpolate(x_common, x, y)
+                return y_interpolate
+        
+        return None
     
     def ling_var_names(self):
         return [n.name for n in self.ling_vars]
@@ -104,8 +111,8 @@ class FuzzyVar:
     
     def to_dict(self):
         return {'name': self.name,
-                'dy': self.dy,
-                'dx': self._dx,
+                'dy': float(self.dy),
+                'dx': float(self._dx),
                 'ling_vars': {n.name: n.to_dict() for n in self.ling_vars}}
     
     @staticmethod
@@ -129,6 +136,7 @@ class FuzzyLogicElement:
         self.logic_inference = [['min' for i in range(len(
             self.in2.ling_vars))] for n
                                 in range(len(self.in1.ling_vars))]
+        
         self.out_inference = 'Max'
     
     def is_corresponding_element(self, in1, in2, out):
@@ -155,6 +163,7 @@ class FuzzyLogicElement:
             self.logic[i][j] = new_name
     
     def reevaluate_matrix(self):
+        # todo: error when adding a lingvar
         names = [n.name for n in self.out.ling_vars]
         inx_2_change = []
         for i, row in enumerate(self.logic):
@@ -340,8 +349,10 @@ def add_ling_var_to_fuzzy_logic(in_out_lbl, ling_var_lbl):
             case 1:  # horizontal var
                 for row in range(len(each.logic)):
                     each.logic[row].insert(lv_idx, 'None')
+                    each.logic_inference[row].insert(lv_idx, 'min')
             case 2:  # vertical var
                 each.logic.insert(lv_idx, ['None'] * len(each.logic[0]))
+                each.logic_inference[row].insert(lv_idx, ['min'] * len(each.logic[0]))
 
 
 def change_ling_var_order_in_fuzzy_logic(in_out_lbl, from_idx, to_idx):

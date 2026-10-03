@@ -5,9 +5,7 @@ import shutil
 
 import data
 
-# from .c_strings import *
 from . import c_strings
-
 
 def c_export(data, path):
     this_path = os.path.dirname(__file__)
@@ -27,6 +25,7 @@ def c_export(data, path):
     project_name = 'tst_prj_name'
     
     file_h = os.path.join(working_dir, project_name + '.h')
+    file_h_if = os.path.join(working_dir, project_name + '_interface.h')
     file_c = os.path.join(working_dir, project_name + '.c')
     
     # make .h
@@ -35,29 +34,13 @@ def c_export(data, path):
     with open(file_h, 'w') as f:
         f.write(h_str)
     
+    h_if_str = make_h_if_file_string(data, project_name)
+    with open(file_h_if, 'w') as f:
+        f.write(h_if_str)
+    
     c_str = make_c_file_string(data, project_name)
     with open(file_c, 'w') as f:
         f.write(c_str)
-
-
-"""
-static FUZZY_LOGIC_ELEMENT01_t fuzzy_logic01 = {
-    .logic = {
-        {OUT01_LV_HIGH,OUT01_LV_HIGH, OUT01_LV_MID},
-        {OUT01_LV_HIGH, OUT01_LV_MID, OUT01_LV_LOW},
-        {OUT01_LV_MID, OUT01_LV_LOW, OUT01_LV_LOW}
-    },
-    .logic_inference = {
-        {INF_MIN,INF_MIN,INF_MIN},
-        {INF_MIN,INF_MIN,INF_MIN},
-        {INF_MIN,INF_MIN,INF_MIN}
-    },
-    .inference = INF_MAX,
-};
-
-FUZZY_CTRL_t fuzzy_ctrl = {INF_MIN};
-
-"""
 
 
 def make_c_file_string(data, project_name):
@@ -71,25 +54,43 @@ def make_c_file_string(data, project_name):
     
     # make instance for fuzzy logic: elements and inference
     
+    for i, each in enumerate(data['logic']):
+        c_str += c_strings.make_fuzzylogic_static_instance(project_name, i, each)
+    
+    c_str += c_strings.make_outp_element_static_instances(project_name, data['logic'])
+    
+    c_str += c_strings.make_fuzzy_element_calculation_function(project_name, data['logic'])
+    
+    c_str += c_strings.make_output_calculation_functions(project_name, data)
+    
+    c_str += c_strings.make_fuzzy_function(project_name, data)
+    
     return c_str
 
+def make_h_if_file_string(data, project_name):
+    h_str = c_strings.h_if_str_start.format(nm=project_name.upper())
+    
+    io_vars = [c_strings.get_io_name(project_name, io.name) for io in data['inputs'].values()]
+    io_vars.extend([c_strings.get_io_name(project_name, io.name) for io in data['outputs'].values()])
+    
+    h_str += 'typedef struct {\n'
+    for each in io_vars:
+        h_str += f'\tFLOAT {each};\n'
+    h_str += '} ' + f'{project_name}_IO_STRUCT_t;\n\n'
+    
+    h_str += f'uint8_t {project_name}_calculate_fuzzy({project_name}_IO_STRUCT_t* io_struct);\n'
+    
+    h_str += f'\n\n# endif // {project_name.upper()}_INTERFACE_H_INCLUDED\n'
+    return h_str
+    
+    
 
 def make_h_file_string(data, project_name):
     print(data)
     
-    h_str = c_strings.h_str_start.format(nm=project_name.upper())
+    h_str = c_strings.h_str_start.format(nm=project_name.upper(), p_name=project_name)
     h_str += 'enum {\n\tINF_MIN = 0,\n\tINF_MAX,\n\tINF_IGNORE\n'
     h_str += '}; typedef UINT8 INFERENCE_e;\n\n'
-    
-    # for each in data['inputs'].values():
-    #     name = c_strings.get_io_var_name(each.name, True)
-    #     n = each.num_x_pts()
-    #     h_str += f'# define NUM_DATA_ARRAY_{name} {n}\n'
-    #
-    # for each in data['outputs'].values():
-    #     name = c_strings.get_io_var_name(each.name, False)
-    #     n = each.num_x_pts()
-    #     h_str += f'# define NUM_DATA_ARRAY_{name} {n}\n'
     
     io_vars = []
     
@@ -115,12 +116,9 @@ def make_h_file_string(data, project_name):
     for k, v in logic_el_by_outs.items():
         h_str += c_strings.make_logic_results_h(project_name, k, len(v))
     
-    h_str += 'typedef struct {\n'
-    for each in io_vars:
-        h_str += f'\tFLOAT {each};\n'
-    h_str += '} ' + f'{project_name}_IO_STRUCT_t;\n\n'
-    h_str += 'ERROR_CODE_e calculate_fuzzy('
-    h_str += f'{project_name}_IO_STRUCT_t* input_struct);'
+   
+    # h_str += 'ERROR_CODE_e calculate_fuzzy('
+    # h_str += f'{project_name}_IO_STRUCT_t* input_struct);'
     h_str += f'\n\n# endif // {project_name.upper()}_H_INCLUDED\n'
     return h_str
 

@@ -136,6 +136,7 @@ static void calculate_fuzzy_element01(void) {
     fuzzy_ctrl.out01_results.linvar_high[0] = out_high;
 }
 
+
 static void print_array(float arr[], uint16_t len) {
     int index;
     for (index = 0; index < len; index++) {

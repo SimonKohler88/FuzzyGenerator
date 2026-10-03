@@ -15,5 +15,6 @@ int main(void)
     printf("in1 %f\n", io_struct.input01);
     printf("in2 %f\n", io_struct.input02);
     printf("out1 %f\n", io_struct.output01);
+    /*is: 27.87, should: 31.37*/
 
 }
